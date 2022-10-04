@@ -1,5 +1,8 @@
 import numpy as np
 
+BorD = np.s_[:3] # Uncomment for Breadth 1st analysis. # Breadth 1st looks at oldest possible branch 1st.
+#BorD = np.s_[-3:] # Uncomment for Depth 1st analysis. # Depth 1st looks at newest possible branch 1st.
+
 Frontier = np.array([]) # Create the frontier list which will be the buffer for storing the branches to be explored.
 TotFrontier = np.array([]) # Creates a buffer of all states to check against looping.
 Initial = np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0]]) # All rings located at first peg.
@@ -89,12 +92,10 @@ def Breadth_DepthFirst(F, step, TotFrontier):
         return complete, F, step, TotFrontier
     
     # Selects a new branch state to explore.
-    #Selected = F[:3] # Breadth 1st looks at oldest possible branch 1st.
-    Selected = F[-3:] # Depth 1st looks at newest possible branch 1st.
+    Selected = F[BorD] # Depending on the slice BorD (established at beginning of file) function will execute Breadth or Depth 1st.
     
     # Remove previously selected branch (cols) of F as they have been grabbed already for expansion.
-    #F = np.delete(F, np.s_[:3], axis=0) # Breadth 1st
-    F = np.delete(F, np.s_[-3:], axis=0) # Depth 1st
+    F = np.delete(F, np.s_[BorD], axis=0) # Depending on the slice BorD (established at beginning of file) function will execute Breadth or Depth 1st.
 
     # Check if selected state = solution.
     if np.array_equal(Selected,Solution):
@@ -116,3 +117,4 @@ while not complete:
 #     print("Frontier: ")
 #     print(Frontier)
     step+=1
+
