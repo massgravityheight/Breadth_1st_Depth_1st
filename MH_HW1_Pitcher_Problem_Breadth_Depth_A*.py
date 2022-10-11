@@ -4,6 +4,10 @@ Frontier = np.array([]) # Create the frontier list which will be the buffer for 
 TotFrontier = np.array([]) # Creates a buffer of all states to check against looping.
 Initial = np.array([0, 0]) # All pitchers empty [p3, p5].
 Solution = np.array([0, 4]) # P5 has 4 L of water in it.
+Solution_Array = []
+Solution_Parent = []
+identity = 0
+SolutionPath = []
 complete = False
 Steps = np.array([0])
 Waste = np.array([0])
@@ -17,6 +21,18 @@ while not (ans==1 or ans==2 or ans==3):
     except:
         print('Please try again, input the number only.')
         
+def Find_Parent_ID(Solution_Parent, Selected): # Search through the Solution Parent list and look up the parent id of the selected.
+    for p in Solution_Parent:
+        if (p[1]==Selected).all():
+            Parent_ID = p[0]
+            return Parent_ID
+
+def Find_Parent(Solution_Array, I):
+    for p in Solution_Array:
+        if (p[0]==I):
+            Parent = p[1]
+            return Parent
+
 def Cost_Steps_Fill(F, Steps, Waste):
     Cost_List = []
     Cost_List1 = []
@@ -25,7 +41,7 @@ def Cost_Steps_Fill(F, Steps, Waste):
     FShape = F.shape
     WShape = Waste.shape
     SShape = Steps.shape
-    print("F: ",F)
+#     print("F: ",F)
     for w in range(0,WShape[0]):
         Cost_List1.append(Waste[w]) # Add waste values to list. Lowest waste will help identify next selection.
     for s in range(0,SShape[0]):
@@ -38,7 +54,7 @@ def Cost_Steps_Fill(F, Steps, Waste):
     Min_Value = min(Cost_List)
     Low_Loc = Cost_List.index(Min_Value) # Location of lowest scoring state in Step terms.
     Selected = np.array([F[(Low_Loc*2)],F[(Low_Loc*2+1)]])
-    print("Lowest Scoring State: ",Selected)
+#     print("Lowest Scoring State: ",Selected)
     return Selected, Low_Loc
 
 def CheckIfValidState(NewState, Selected, F, TotFrontier): # Assumes only 1 change in pitchers between states.
@@ -93,9 +109,9 @@ def Fill_Empty_Pour(NewState, i, j): # 3 options for each pitcher, fill it up co
 #     print(NewState)
     return NewState, WasteTemp
 
-def FindChildStates(F, Selected, step, TotFrontier, Steps, Waste):
-    print("Selected State: ")
-    print(Selected)
+def FindChildStates(F, Selected, step, TotFrontier, Steps, Waste, Solution_Array, Solution_Parent, identity):
+#     print("Selected State: ")
+#     print(Selected)
     
     S_Shape = Selected.shape
     for i in range(0,S_Shape[0]):
@@ -103,33 +119,36 @@ def FindChildStates(F, Selected, step, TotFrontier, Steps, Waste):
             NewState = Selected.copy() # At each iteration reset NewState to Selected.
             NewState, WasteTemp = Fill_Empty_Pour(NewState, i, j) # Fill, Empty, or Pour depending on j
             if CheckIfValidState(NewState, Selected, F, TotFrontier):
-                print("Good New State: ")
-                print(NewState)
+#                 print("Good New State: ")
+#                 print(NewState)
                 F = np.append(F,NewState,axis=0) # Add good new states to end of Frontier.
                 Steps = np.append(Steps,step) # Add the step the NewState was found for the A* cost function selection process.
                 Waste = np.append(Waste,WasteTemp) # Add the waste created when the NewState was found for the A* cost function selection process.
                 TotFrontier = np.append(TotFrontier,NewState,axis=0) # Collect all states to check against looping.
-    return F, step, TotFrontier, Steps, Waste
+                Solution_Parent.append([identity, NewState]) # Add new states with a reference to their parent.
+    return F, step, TotFrontier, Steps, Waste, Solution_Array, Solution_Parent
 
-def Breadth_Depth_First(F, step, TotFrontier, Steps, Waste):
-    
+def Breadth_Depth_First(F, step, TotFrontier, Steps, Waste, Solution_Array, Solution_Parent, identity):
     # Checks if Frontier is out of branch states to explore.
     if ((F.size)==0):
         print("Failure. No more branches to explore and a solution has not been found.")
         complete = True
-        return complete, F, step, TotFrontier, Selected, Steps, Waste
+        return complete, F, step, TotFrontier, Selected, Steps, Waste, Solution_Array, Solution_Parent, identity
     
     # Selects a new branch state to explore and removes selected state from F & Steps.
     if ans==1:
         Selected = F[np.s_[:2]] # Breadth 1st
+        Solution_Array.append([identity, Selected]) # Save parent with its identity
         F = np.delete(F, np.s_[:2], axis=0)
         Steps = np.delete(Steps, np.s_[:1], axis=0)
     if ans==2:
         Selected = F[np.s_[-2:]] # Depth 1st
+        Solution_Array.append([identity, Selected])
         F = np.delete(F, np.s_[-2:], axis=0)
         Steps = np.delete(Steps, np.s_[1:], axis=0)
     if ans==3:
         Selected, Low_Loc = Cost_Steps_Fill(F, Steps, Waste) # Modifies selection with A* cost function.
+        Solution_Array.append([identity, Selected])
         F = np.delete(F, 2*Low_Loc, axis=0)
         F = np.delete(F, 2*Low_Loc, axis=0)
         Steps = np.delete(Steps, Low_Loc, axis=0)
@@ -139,23 +158,34 @@ def Breadth_Depth_First(F, step, TotFrontier, Steps, Waste):
     if np.array_equal(Selected,Solution):
         print("Success! Selected state matches solution.")
         complete = True
-        return complete, F, step, TotFrontier, Selected, Steps, Waste
+        return complete, F, step, TotFrontier, Selected, Steps, Waste, Solution_Array, Solution_Parent, identity
     
     # Expand selected state for possible branches and add them to Frontier.
-    F, step, TotFrontier, Steps, Waste = FindChildStates(F, Selected, step, TotFrontier, Steps, Waste)
+    F, step, TotFrontier, Steps, Waste, Solution_Array, Solution_Parent = FindChildStates(F, Selected, step, TotFrontier, Steps, Waste, Solution_Array, Solution_Parent, identity)
 
     complete = False # Make True to stop looping.
-    return complete, F, step, TotFrontier, Selected, Steps, Waste
+    identity+=1
+    return complete, F, step, TotFrontier, Selected, Steps, Waste, Solution_Array, Solution_Parent, identity
     
 Frontier = TotFrontier = Initial
 
 while not complete:
-    print("Step------------ ",step)
-    complete, Frontier, step, TotFrontier, Selected, Steps, Waste = Breadth_Depth_First(Frontier, step, TotFrontier, Steps, Waste)
+#     print("Step------------ ",step)
+    complete, Frontier, step, TotFrontier, Selected, Steps, Waste, Solution_Array, Solution_Parent, identity  = Breadth_Depth_First(Frontier, step, TotFrontier, Steps, Waste, Solution_Array, Solution_Parent, identity)
 #     print("Frontier: ")
 #     print(Frontier)
     step+=1
-print("Selected: ")
-print(Selected)
-print("Frontier: ")
-print(Frontier)
+# print("Selected: ")
+# print(Selected)
+# print("Frontier: ")
+# print(Frontier)
+# Gather solution
+SolutionPath.append(Selected)
+while not (Selected==Initial).all():
+    I = Find_Parent_ID(Solution_Parent, Selected)
+    Selected = Find_Parent(Solution_Array, I)
+    SolutionPath.insert(0,Selected)
+print("Solution found in ",step-1," iterations and would require ",len(SolutionPath)," actions by the agent. \nSolution:")
+for s in SolutionPath:
+    print(s)
+    
